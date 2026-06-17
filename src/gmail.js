@@ -405,17 +405,20 @@ var Gmail = function(localJQuery) {
             var text = link.textContent.trim();
             var match = text.match(/([\d,.]+)\s*GB.*used/i);
             if (match) {
-                var totalGb = match[1].replace(/,/g, '.');
-                var pctMatch = text.match(/([\d]+)%/);
-                var pctVal = pctMatch ? parseInt(pctMatch[1]) : 0;
-                return { used: Math.round(parseFloat(totalGb) * pctVal / 100) + " GB", total: totalGb + " GB", percent: pctVal };
+                var fbTotal = match[1].replace(/,/g, '.');
+                var fbPctMatch = text.match(/([\d]+)%/);
+                var fbPct = fbPctMatch ? parseInt(fbPctMatch[1]) : 0;
+                return { used: Math.round(parseFloat(fbTotal) * fbPct / 100) + " GB", total: fbTotal + " GB", percent: fbPct };
             }
             return { used: "0 GB", total: "15 GB", percent: 0 };
         }
-        var usedStr = spans[0].textContent.replace(/,/g, '.');
-        var totalStr = spans[1].textContent.replace(/,/g, '.');
-        var pctNum = parseFloat(usedStr.replace(/[^0-9\.]/g, "")) * 100 / parseFloat(totalStr.replace(/[^0-9\.]/g, ""));
-        return { used: usedStr, total: totalStr, percent: Math.floor(pctNum) };
+        // Current Gmail: span[0] = "5%" (percentage), span[1] = "5,120 GB" (total)
+        var pctText = spans[0].textContent.replace(/[^0-9\.]/g, '');
+        var totalText = spans[1].textContent.replace(/,/g, '.');
+        var pctNum = parseFloat(pctText);
+        var totalNum = parseFloat(totalText.replace(/[^0-9\.]/g, ''));
+        var usedNum = Math.round(totalNum * pctNum / 100);
+        return { used: usedNum + " GB", total: totalText + " GB", percent: Math.floor(pctNum) };
     };
 
 
@@ -681,7 +684,15 @@ var Gmail = function(localJQuery) {
         const title = api.tools.i18n(i18nName);
         
         // New Gmail: aria-label on <a> elements with class J-Ke n0
+        // Try exact title match first, then try first word of title (Gmail sometimes shortens)
         var links = document.querySelectorAll("a[aria-label*='" + title + "']");
+        if (links.length === 0) {
+            // Try first word of title (e.g. "Social Updates" -> "Social")
+            var firstWord = title.split(' ')[0];
+            if (firstWord && firstWord !== title) {
+                links = document.querySelectorAll("a[aria-label*='" + firstWord + "']");
+            }
+        }
         if (links.length > 0) {
             var label = links[0].getAttribute('aria-label');
             if (label) {
