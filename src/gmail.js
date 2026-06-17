@@ -386,12 +386,36 @@ var Gmail = function(localJQuery) {
     };
 
 
+    /**
+     * Get Gmail storage info from the footer storage meter.
+     * Selector: a.bcB (storage link) > parent div.aiF > spans with used/total
+     */
     api.get.storage_info = function() {
-        var div = document.querySelector(".md.mj div");
-        var used = div.querySelectorAll("span")[0].textContent.replace(/,/g, '.'); //convert to standard decimal
-        var total = div.querySelectorAll("span")[1].textContent.replace(/,/g, '.');
-        var percent = parseFloat(used.replace(/[^0-9\.]/g, "")) * 100 / parseFloat(total.replace(/[^0-9\.]/g, ""));
-        return {used : used, total : total, percent : Math.floor(percent)};
+        var link = document.querySelector("a.bcB");
+        if (!link) {
+            return { used: "0 GB", total: "15 GB", percent: 0 };
+        }
+        var parent = link.parentElement;
+        if (!parent) {
+            return { used: "0 GB", total: "15 GB", percent: 0 };
+        }
+        var spans = parent.querySelectorAll("span");
+        if (spans.length < 2) {
+            // Fallback: parse the link text directly (e.g. "5% of 5,120 GB used")
+            var text = link.textContent.trim();
+            var match = text.match(/([\d,.]+)\s*GB.*used/i);
+            if (match) {
+                var totalGb = match[1].replace(/,/g, '.');
+                var pctMatch = text.match(/([\d]+)%/);
+                var pctVal = pctMatch ? parseInt(pctMatch[1]) : 0;
+                return { used: Math.round(parseFloat(totalGb) * pctVal / 100) + " GB", total: totalGb + " GB", percent: pctVal };
+            }
+            return { used: "0 GB", total: "15 GB", percent: 0 };
+        }
+        var usedStr = spans[0].textContent.replace(/,/g, '.');
+        var totalStr = spans[1].textContent.replace(/,/g, '.');
+        var pctNum = parseFloat(usedStr.replace(/[^0-9\.]/g, "")) * 100 / parseFloat(totalStr.replace(/[^0-9\.]/g, ""));
+        return { used: usedStr, total: totalStr, percent: Math.floor(pctNum) };
     };
 
 
@@ -648,12 +672,29 @@ var Gmail = function(localJQuery) {
         return api.helper.get.navigation_count("social_updates");
     };
 
+    /**
+     * Get unread count for a navigation item by its aria-label.
+     * Current Gmail uses aria-label like "Inbox 57504 unread" on <a> elements.
+     * Falls back to the old title-based approach for legacy Gmail.
+     */
     api.helper.get.navigation_count = function(i18nName) {
         const title = api.tools.i18n(i18nName);
+        
+        // New Gmail: aria-label on <a> elements with class J-Ke n0
+        var links = document.querySelectorAll("a[aria-label*='" + title + "']");
+        if (links.length > 0) {
+            var label = links[0].getAttribute('aria-label');
+            if (label) {
+                var match = label.match(/([\d,]+)\s*unread/);
+                if (match) {
+                    return parseInt(match[1].replace(/,/g, ''));
+                }
+            }
+        }
+        
+        // Legacy fallback: title-based approach
         const dom = document.querySelectorAll("div[role=navigation] [title*='" + title + "']");
-
         if (dom.length > 0) {
-            // this check should implicitly always be true, but better safe than sorry?
             if(dom[0].title.indexOf(title) !== -1) {
                 const value = parseInt(dom[0].attributes['aria-label'].value.replace(/[^0-9]/g, ""));
                 if (!isNaN(value)) {
