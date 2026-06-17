@@ -694,7 +694,7 @@ var Gmail = function(localJQuery) {
         var match = regex.exec(url);
 
         while (match) {
-            params[match[1]] = match[2];
+            params[decodeURIComponent(match[1])] = decodeURIComponent(match[2]);
             match = regex.exec(url);
         }
 
@@ -702,6 +702,7 @@ var Gmail = function(localJQuery) {
     };
 
     api.tools.sleep = function(milliseconds) {
+        console.warn("GmailJS: api.tools.sleep() uses a blocking busy-wait which freezes the UI. Consider migrating to an async pattern with setTimeout/await.");
         var start = new Date().getTime();
         while(true) {
             if ((new Date().getTime() - start) > milliseconds){
@@ -724,7 +725,7 @@ var Gmail = function(localJQuery) {
             return value;
         } else {
             api.tools.sleep(delay);
-            api.tools.multitry(delay, tries, func, check, counter+1, value);
+            return api.tools.multitry(delay, tries, func, check, counter+1, value);
         }
     };
 
