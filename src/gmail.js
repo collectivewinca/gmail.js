@@ -408,17 +408,19 @@ var Gmail = function(localJQuery) {
                 var fbTotal = match[1].replace(/,/g, '.');
                 var fbPctMatch = text.match(/([\d]+)%/);
                 var fbPct = fbPctMatch ? parseInt(fbPctMatch[1]) : 0;
-                return { used: Math.round(parseFloat(fbTotal) * fbPct / 100) + " GB", total: fbTotal + " GB", percent: fbPct };
+                var fbTotalNum = parseFloat(fbTotal);
+                var fbUsed = Math.round(fbTotalNum * fbPct / 100);
+                return { used: fbUsed + " GB", total: fbTotal + " GB", percent: fbPct };
             }
             return { used: "0 GB", total: "15 GB", percent: 0 };
         }
         // Current Gmail: span[0] = "5%" (percentage), span[1] = "5,120 GB" (total)
         var pctText = spans[0].textContent.replace(/[^0-9\.]/g, '');
-        var totalText = spans[1].textContent.replace(/,/g, '.');
+        var totalRaw = spans[1].textContent.replace(/,/g, '.');
         var pctNum = parseFloat(pctText);
-        var totalNum = parseFloat(totalText.replace(/[^0-9\.]/g, ''));
+        var totalNum = parseFloat(totalRaw.replace(/[^0-9\.]/g, ''));
         var usedNum = Math.round(totalNum * pctNum / 100);
-        return { used: usedNum + " GB", total: totalText + " GB", percent: Math.floor(pctNum) };
+        return { used: usedNum + " GB", total: totalNum + " GB", percent: Math.floor(pctNum) };
     };
 
 
