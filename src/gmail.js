@@ -364,8 +364,12 @@ var Gmail = function(localJQuery) {
         return chat[0].getAttribute("aria-labelledby") === ":wf";
     };
 
+    /**
+     * @deprecated This function is known to be unreliable and may be removed in a future release.
+     * Gmail's internal settings format has changed and this check no longer produces reliable results.
+     */
     api.check.should_compose_fullscreen = function(){
-        console.warn("gmail.js: This function is known to be unreliable, and may be deprecated in a future release.");
+        console.warn("GmailJS: This function is deprecated and unreliable. It may be removed in a future release.");
         var bx_scfs = [];
         try {
             bx_scfs = api.tracker.globals[17][4][1][32];
@@ -1340,9 +1344,32 @@ var Gmail = function(localJQuery) {
         }
     };
 
+    /**
+     * Gmail internal data format indices for /i/fd request payloads.
+     * These index into reverse-engineered array structures from Gmail XHR responses.
+     * When Gmail changes its data format, update these constants.
+     */
+    const FD_THREAD_ROOT = 1;
+    const FD_THREAD_ID = 0;
+    const FD_THREAD_EMAILS = 2;
+    const FD_EMAIL_ID = 0;
+    const FD_EMAIL_META = 1;
+    const FD_META_TO = 0;
+    const FD_META_CC = 1;
+    const FD_META_BCC = 2;
+    const FD_META_SUBJECT = 4;
+    const FD_META_SMTP_ID = 7;
+    const FD_META_SENDER = 10;
+    const FD_META_ATTACHMENTS = 13;
+    const FD_META_TIMESTAMP = 16;
+    const FD_META_LEGACY_ID = 34;
+    const FD_SENDER_EMAIL = 16;
+    const FD_EMAIL2_FROM = 1;
+    const FD_EMAIL2_DRAFT = 3;
+
     api.tools.parse_fd_request_payload = function(json) {
         // ensure JSON-format is known and understood?
-        let thread_root = json["1"];
+        let thread_root = json[FD_THREAD_ROOT];
         if (!thread_root || !Array.isArray(thread_root)) {
             return null;
         }
@@ -1353,39 +1380,39 @@ var Gmail = function(localJQuery) {
 
             const fd_threads = thread_root; // array
             for (let fd_thread_container of fd_threads) {
-                const fd_thread_id = fd_thread_container["0"];
+                const fd_thread_id = fd_thread_container[FD_THREAD_ID];
 
-                let fd_emails = fd_thread_container["2"]; // array
+                let fd_emails = fd_thread_container[FD_THREAD_EMAILS]; // array
                 for (let fd_email of fd_emails) {
                     //console.log(fd_email)
-                    const fd_email_id = fd_email["0"];
+                    const fd_email_id = fd_email[FD_EMAIL_ID];
 
                     // detailed to/from-fields must be obtained through the -other- email message node.
                     const fd_email2 = api.tools.parse_fd_request_payload_get_email2(fd_thread_container, fd_email_id);
 
-                    const fd_legacy_email_id = fd_email["1"]["34"];
-                    const fd_email_smtp_id = fd_email["1"]["7"];
+                    const fd_legacy_email_id = fd_email[FD_EMAIL_META][FD_META_LEGACY_ID];
+                    const fd_email_smtp_id = fd_email[FD_EMAIL_META][FD_META_SMTP_ID];
 
-                    const fd_email_subject = fd_email["1"]["4"];
-                    const fd_email_timestamp = Number.parseInt(fd_email["1"]["16"]);
+                    const fd_email_subject = fd_email[FD_EMAIL_META][FD_META_SUBJECT];
+                    const fd_email_timestamp = Number.parseInt(fd_email[FD_EMAIL_META][FD_META_TIMESTAMP]);
                     const fd_email_date = new Date(fd_email_timestamp);
 
-                    const fd_email_is_draft = api.tools.parse_fd_bv_is_draft(fd_email2["3"]);
+                    const fd_email_is_draft = api.tools.parse_fd_bv_is_draft(fd_email2[FD_EMAIL2_DRAFT]);
 
                     const fd_email_content_html = api.tools.parse_fd_request_html_payload(fd_email);
 
-                    const fd_attachments = api.tools.parse_fd_attachments(fd_email["1"]["13"]);
+                    const fd_attachments = api.tools.parse_fd_attachments(fd_email[FD_EMAIL_META][FD_META_ATTACHMENTS]);
 
-                    const fd_email_sender_address = fd_email["1"]["10"]["16"];
+                    const fd_email_sender_address = fd_email[FD_EMAIL_META][FD_META_SENDER][FD_SENDER_EMAIL];
 
-                    let fd_from = api.tools.parse_fd_bv_contact(fd_email2["1"]);
+                    let fd_from = api.tools.parse_fd_bv_contact(fd_email2[FD_EMAIL2_FROM]);
                     if (!fd_from) {
                         fd_from = { address: fd_email_sender_address, name: "" };
                     }
 
-                    const fd_to = api.tools.parse_fd_bv_contacts(fd_email["1"]["0"]);
-                    const fd_cc = api.tools.parse_fd_bv_contacts(fd_email["1"]["1"]);
-                    const fd_bcc = api.tools.parse_fd_bv_contacts(fd_email["1"]["2"]);
+                    const fd_to = api.tools.parse_fd_bv_contacts(fd_email[FD_EMAIL_META][FD_META_TO]);
+                    const fd_cc = api.tools.parse_fd_bv_contacts(fd_email[FD_EMAIL_META][FD_META_CC]);
+                    const fd_bcc = api.tools.parse_fd_bv_contacts(fd_email[FD_EMAIL_META][FD_META_BCC]);
 
                     const email = {
                         id: fd_email_id,
@@ -1420,9 +1447,31 @@ var Gmail = function(localJQuery) {
         }
     };
 
+    /**
+     * Gmail internal data format indices for embedded JSON (from _GM_setData).
+     * These differ from the /i/fd request payload indices.
+     */
+    const FDE_THREAD_ROOT = 1;
+    const FDE_THREAD_META = 1;
+    const FDE_THREAD_ID = 3;
+    const FDE_THREAD_EMAILS = 4;
+    const FDE_EMAIL_ID = 0;
+    const FDE_EMAIL_TO = 2;
+    const FDE_EMAIL_CC = 3;
+    const FDE_EMAIL_BCC = 4;
+    const FDE_EMAIL_SUBJECT = 7;
+    const FDE_EMAIL_DRAFT = 10;
+    const FDE_EMAIL_ATTACHMENTS = 11;
+    const FDE_EMAIL_SMTP_ID = 13;
+    const FDE_EMAIL_TIMESTAMP = 17;
+    const FDE_EMAIL_SENDER = 18;
+    const FDE_SENDER_EMAIL = 16;
+    const FDE_EMAIL_LEGACY_ID = 55;
+    const FDE_EMAIL2_FROM = 1;
+
     api.tools.parse_fd_embedded_json = function (json) {
         // ensure JSON-format is known and understood?
-        let thread_root = json["1"];
+        let thread_root = json[FDE_THREAD_ROOT];
 
         if (!thread_root || !Array.isArray(thread_root)) {
             return null;
@@ -1433,39 +1482,36 @@ var Gmail = function(localJQuery) {
 
             const fd_threads = thread_root; // array
             for (let fd_thread_container of fd_threads) {
-                const fd_thread_id = fd_thread_container["1"]["3"];
+                const fd_thread_id = fd_thread_container[FDE_THREAD_META][FDE_THREAD_ID];
 
-                let fd_emails = fd_thread_container["1"]["4"]; // array
+                let fd_emails = fd_thread_container[FDE_THREAD_META][FDE_THREAD_EMAILS]; // array
                 for (let fd_email of fd_emails) {
                     //console.log(fd_email)
-                    const fd_email_id = fd_email["0"];
-
-
+                    const fd_email_id = fd_email[FDE_EMAIL_ID];
 
                     // detailed to/from-fields must be obtained through the -other- email message node.
                     //TODO : need a refactoring
                     const fd_email2 = api.tools.parse_fd_embedded_json_get_email(fd_thread_container, fd_email_id);
 
+                    //TODO : to check...
+                    const fd_legacy_email_id = fd_email[FDE_EMAIL_LEGACY_ID];
+                    const fd_email_smtp_id = fd_email[FDE_EMAIL_SMTP_ID];
+                    const fd_email_subject = fd_email[FDE_EMAIL_SUBJECT];
+
+                    const fd_email_is_draft = api.tools.parse_fd_bv_is_draft(fd_email[FDE_EMAIL_DRAFT]);
 
                     //TODO : to check...
-                    const fd_legacy_email_id = fd_email["55"];
-                    const fd_email_smtp_id = fd_email["13"];
-                    const fd_email_subject = fd_email["7"];
-
-                    const fd_email_is_draft = api.tools.parse_fd_bv_is_draft(fd_email["10"]);
-
-                    //TODO : to check...
-                    const fd_email_timestamp = Number.parseInt(fd_email["17"]);
+                    const fd_email_timestamp = Number.parseInt(fd_email[FDE_EMAIL_TIMESTAMP]);
                     const fd_email_date = new Date(fd_email_timestamp);
 
                     //TODO : need a refactoring
                     const fd_email_content_html = api.tools.parse_fd_embedded_json_content_html(fd_email);
 
-                    const fd_attachments = api.tools.parse_fd_embedded_json_attachments(fd_email["11"]);
-                    const fd_email_sender_address = fd_email["18"]["16"];
+                    const fd_attachments = api.tools.parse_fd_embedded_json_attachments(fd_email[FDE_EMAIL_ATTACHMENTS]);
+                    const fd_email_sender_address = fd_email[FDE_EMAIL_SENDER][FDE_SENDER_EMAIL];
 
                     //TODO
-                    let fd_from = api.tools.parse_fd_bv_contact(fd_email2["1"]);
+                    let fd_from = api.tools.parse_fd_bv_contact(fd_email2[FDE_EMAIL2_FROM]);
                     if (!fd_from) {
                         fd_from = {
                             address: fd_email_sender_address,
@@ -1473,9 +1519,9 @@ var Gmail = function(localJQuery) {
                         };
                     }
 
-                    const fd_to = api.tools.parse_fd_bv_contacts(fd_email["2"]);
-                    const fd_cc = api.tools.parse_fd_bv_contacts(fd_email["3"]);
-                    const fd_bcc = api.tools.parse_fd_bv_contacts(fd_email["4"]);
+                    const fd_to = api.tools.parse_fd_bv_contacts(fd_email[FDE_EMAIL_TO]);
+                    const fd_cc = api.tools.parse_fd_bv_contacts(fd_email[FDE_EMAIL_CC]);
+                    const fd_bcc = api.tools.parse_fd_bv_contacts(fd_email[FDE_EMAIL_BCC]);
 
                     const email = {
                         id: fd_email_id,
@@ -1512,11 +1558,28 @@ var Gmail = function(localJQuery) {
     /**
      * Parse xhr response fom bv request like https://mail.google.com/sync/u/0/i/bv?hl=fr&c=0
      */
+    /**
+     * Gmail internal data format indices for /i/bv request payloads.
+     * These differ from /i/fd and embedded JSON indices.
+     */
+    const BV_THREAD_ROOT = 2;
+    const BV_THREAD_META = 0;
+    const BV_THREAD_SUBJECT = 0;
+    const BV_THREAD_ID = 3;
+    const BV_THREAD_EMAILS = 4;
+    const BV_EMAIL_ID = 0;
+    const BV_EMAIL_FROM = 1;
+    const BV_FROM_ADDRESS = 1;
+    const BV_FROM_NAME = 2;
+    const BV_EMAIL_DRAFT = 10;
+    const BV_EMAIL_TIMESTAMP = 17;
+    const BV_EMAIL_LEGACY_ID = 55;
+
     api.tools.parse_bv_request_payload = function (json) {
         // ensure JSON-format is known and understood?
         // JSON-format is not simple to understand, code here is bases on hypothesis
         //let label_root = json["2"];
-        let thread_root = json["2"];
+        let thread_root = json[BV_THREAD_ROOT];
         if (!thread_root || !Array.isArray(thread_root)) {
             return null;
         }
@@ -1526,30 +1589,30 @@ var Gmail = function(localJQuery) {
 
             const bv_threads = thread_root; // array
             for (let bv_thread_container of bv_threads) {
-                const bv_thread_subject = bv_thread_container["0"]["0"];
-                const bv_thread_id = bv_thread_container["0"]["3"];
+                const bv_thread_subject = bv_thread_container[BV_THREAD_META][BV_THREAD_SUBJECT];
+                const bv_thread_id = bv_thread_container[BV_THREAD_META][BV_THREAD_ID];
 
-                let bv_emails = bv_thread_container["0"]["4"]; // array
+                let bv_emails = bv_thread_container[BV_THREAD_META][BV_THREAD_EMAILS]; // array
                 for (let bv_email of bv_emails) {
                     //console.log(bv_email)
-                    const bv_email_id = bv_email["0"];
-                    const bv_legacy_email_id = bv_email["55"];
+                    const bv_email_id = bv_email[BV_EMAIL_ID];
+                    const bv_legacy_email_id = bv_email[BV_EMAIL_LEGACY_ID];
                     const bv_email_smtp_id = ""; //bv_email["16"] is smtp_id of previous email in the conversation
                     //const bv_email["16"] !==undefined ? bv_email["16"] : ""; //present only if user is the sender ?
                     const bv_email_subject = bv_thread_subject; //value present on thread but not on email
-                    const bv_email_timestamp = Number.parseInt(bv_email["17"]); //another timestamp with same value present on bv_email["31"]
+                    const bv_email_timestamp = Number.parseInt(bv_email[BV_EMAIL_TIMESTAMP]); //another timestamp with same value present on bv_email["31"]
                     const bv_email_date = new Date(bv_email_timestamp);
                     const bv_email_content_html = ""; //Not present in bv request
 
-                    const bv_email_is_draft = api.tools.parse_fd_bv_is_draft(bv_email["10"]);
+                    const bv_email_is_draft = api.tools.parse_fd_bv_is_draft(bv_email[BV_EMAIL_DRAFT]);
 
                     //TODO
                     const bv_attachments = []; //Present but need a new parser (not urgent, present in fd email)
 
                     //TODO : check if it's OK
                     const bv_from = {
-                        address: bv_email["1"]["1"] !== undefined ? bv_email["1"]["1"] : "",
-                        name: bv_email["1"]["2"] !== undefined ? bv_email["1"]["2"] : ""
+                        address: bv_email[BV_EMAIL_FROM][BV_FROM_ADDRESS] !== undefined ? bv_email[BV_EMAIL_FROM][BV_FROM_ADDRESS] : "",
+                        name: bv_email[BV_EMAIL_FROM][BV_FROM_NAME] !== undefined ? bv_email[BV_EMAIL_FROM][BV_FROM_NAME] : ""
                     };
 
                     const bv_to = []; //Not present in bv request
@@ -1588,10 +1651,27 @@ var Gmail = function(localJQuery) {
         }
     };
 
+    /**
+     * Gmail internal data format indices for embedded BV JSON (from _GM_setData).
+     * These differ from /i/bv request payload indices.
+     */
+    const BVE_ROOT = 0;
+    const BVE_THREAD_META = 4;
+    const BVE_THREAD_SUBJECT = 0;
+    const BVE_THREAD_ID = 3;
+    const BVE_THREAD_EMAILS = 4;
+    const BVE_EMAIL_ID = 0;
+    const BVE_EMAIL_FROM = 1;
+    const BVE_FROM_ADDRESS = 1;
+    const BVE_FROM_NAME = 2;
+    const BVE_EMAIL_DRAFT = 10;
+    const BVE_EMAIL_TIMESTAMP = 17;
+    const BVE_EMAIL_LEGACY_ID = 55;
+
     api.tools.parse_bv_embedded_json = function (json) {
         // ensure JSON-format is known and understood?
         // JSON-format is not simple to understand, code here is bases on hypothesis
-        let thread_root = json["0"]["0"];
+        let thread_root = json[BVE_ROOT][BVE_ROOT];
         if (!thread_root || !Array.isArray(thread_root)) {
             return null;
         }
@@ -1601,30 +1681,30 @@ var Gmail = function(localJQuery) {
 
             const bv_threads = thread_root; // array
             for (let bv_thread_container of bv_threads) {
-                const bv_thread_subject = bv_thread_container["4"]["0"];
-                const bv_thread_id = bv_thread_container["4"]["3"];
+                const bv_thread_subject = bv_thread_container[BVE_THREAD_META][BVE_THREAD_SUBJECT];
+                const bv_thread_id = bv_thread_container[BVE_THREAD_META][BVE_THREAD_ID];
 
-                let bv_emails = bv_thread_container["4"]["4"]; // array
+                let bv_emails = bv_thread_container[BVE_THREAD_META][BVE_THREAD_EMAILS]; // array
                 for (let bv_email of bv_emails) {
                     //console.log(bv_email)
-                    const bv_email_id = bv_email["0"];
-                    const bv_legacy_email_id = bv_email["55"];
+                    const bv_email_id = bv_email[BVE_EMAIL_ID];
+                    const bv_legacy_email_id = bv_email[BVE_EMAIL_LEGACY_ID];
                     const bv_email_smtp_id = ""; //bv_email["16"] is smtp_id of previous email in the conversation
                     //const bv_email["16"] !==undefined ? bv_email["16"] : ""; //present only if user is the sender ?
                     const bv_email_subject = bv_thread_subject; //value present on thread but not on email
-                    const bv_email_timestamp = Number.parseInt(bv_email["17"]); //another timestamp with same value present on bv_email["31"]
+                    const bv_email_timestamp = Number.parseInt(bv_email[BVE_EMAIL_TIMESTAMP]); //another timestamp with same value present on bv_email["31"]
                     const bv_email_date = new Date(bv_email_timestamp);
                     const bv_email_content_html = ""; //Not present in bv request
 
-                    const bv_email_is_draft = api.tools.parse_fd_bv_is_draft(bv_email["10"]);
+                    const bv_email_is_draft = api.tools.parse_fd_bv_is_draft(bv_email[BVE_EMAIL_DRAFT]);
 
                     //TODO
                     const bv_attachments = []; //Present but need a new parser (not urgent, present in fd email)
 
                     //TODO : check if it's OK
                     const bv_from = {
-                        address: bv_email["1"]["1"] !== undefined ? bv_email["1"]["1"] : "",
-                        name: bv_email["1"]["2"] !== undefined ? bv_email["1"]["2"] : ""
+                        address: bv_email[BVE_EMAIL_FROM][BVE_FROM_ADDRESS] !== undefined ? bv_email[BVE_EMAIL_FROM][BVE_FROM_ADDRESS] : "",
+                        name: bv_email[BVE_EMAIL_FROM][BVE_FROM_NAME] !== undefined ? bv_email[BVE_EMAIL_FROM][BVE_FROM_NAME] : ""
                     };
 
                     const bv_to = []; //Not present in bv request
