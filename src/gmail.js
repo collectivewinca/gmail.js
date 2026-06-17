@@ -817,6 +817,11 @@ var Gmail = function(localJQuery) {
         }
 
         var triggered = {}; // store an object of event_name: [response_args] for events triggered by parsing the actions
+        /**
+         * Maps Gmail internal action codes to gmail.js event names.
+         * These are reverse-engineered from Gmail's XHR request parameters.
+         * When Gmail changes its action codes, update this map.
+         */
         var action_map = {
             "tae"         : "add_to_tasks",
             "rc_^i"       : "archive",
@@ -871,52 +876,30 @@ var Gmail = function(localJQuery) {
         var email_ids   = (typeof sent_params.t === "string") ? [sent_params.t] : sent_params.t;
         var response    = null;
 
-        switch(action) {
-        case "cs":
-        case "ur":
-        case "rd":
-        case "tr":
-        case "sp":
-        case "us":
-        case "ib":
-        case "dl":
-        case "st":
-        case "xst":
-        case "mai":
-        case "mani":
-        case "ig":
-        case "ug":
-        case "dr":
-        case "mt":
-        case "cffm":
-        case "rc_^i":
+        // Build response based on action group.
+        // Different Gmail actions carry different parameters in their response payload.
+        var response_groups = {
+            email_ids_url_body:        ["cs", "ur", "rd", "tr", "sp", "us", "ib", "dl", "st", "xst",
+                                        "mai", "mani", "ig", "ug", "dr", "mt", "cffm", "rc_^i"],
+            email_ids_url_body_acn:    ["arl", "dc_"],
+            email_ids_url_sent:        ["sd"],
+            url_body_sent:             ["tae", "sm"],
+            url_body_expand:           ["el"],
+            sent_m_url_body:           ["dm", "rtr", "mo"]
+        };
+
+        if (response_groups.email_ids_url_body.indexOf(action) !== -1) {
             response = [email_ids, params.url, params.body];
-            break;
-
-        case "arl":
-        case "dc_":
+        } else if (response_groups.email_ids_url_body_acn.indexOf(action) !== -1) {
             response = [email_ids, params.url, params.body, params.url.acn];
-            break;
-
-        case "sd":
+        } else if (response_groups.email_ids_url_sent.indexOf(action) !== -1) {
             response = [email_ids, params.url, sent_params];
-            break;
-
-        case "tae":
-        case "sm":
+        } else if (response_groups.url_body_sent.indexOf(action) !== -1) {
             response = [params.url, params.body, sent_params];
-            break;
-
-        case "el":
+        } else if (response_groups.url_body_expand.indexOf(action) !== -1) {
             response = [params.url, params.body, sent_params.ex === "1"];
-            break;
-
-        case "dm":
-        case "rtr":
-        case "mo":
+        } else if (response_groups.sent_m_url_body.indexOf(action) !== -1) {
             response = [sent_params.m, params.url, params.body];
-            break;
-
         }
 
         if(typeof params.url._reqid === "string" && params.url.view === "tl" && params.url.auto !== undefined) {
