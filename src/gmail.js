@@ -61,7 +61,7 @@ var Gmail = function(localJQuery) {
         console.warn("GmailJS: using deprecated API for old Gmail.", text);
     }
 
-    api.version           = "0.8.0";
+    api.version           = "1.1.16";
     api.tracker.globals   = typeof GLOBALS !== "undefined"
         ? GLOBALS
         : (
