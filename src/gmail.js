@@ -754,7 +754,7 @@ var Gmail = function(localJQuery) {
                 "false": !1,
                 "null": null
             };
-        each(params.replace(/\+/g, " ").split("&"), function (v, j) {
+        each(params.replace(/\+/g, " ").split("&"), function (v) {
             var param = v.split("="),
                 key = decodeURIComponent(param[0]),
                 val,
@@ -805,7 +805,7 @@ var Gmail = function(localJQuery) {
         }
     };
 
-    api.tools.parse_actions = function(params, xhr) {
+    api.tools.parse_actions = function(params) {
 
         // upload_attachment event - if found, don"t check other observers. See issue #22
         if(params.url.act === "fup" || params.url.act === "fuv" || params.body_is_object) {
@@ -880,7 +880,7 @@ var Gmail = function(localJQuery) {
         // Different Gmail actions carry different parameters in their response payload.
         var response_groups = {
             email_ids_url_body:        ["cs", "ur", "rd", "tr", "sp", "us", "ib", "dl", "st", "xst",
-                                        "mai", "mani", "ig", "ug", "dr", "mt", "cffm", "rc_^i"],
+                "mai", "mani", "ig", "ug", "dr", "mt", "cffm", "rc_^i"],
             email_ids_url_body_acn:    ["arl", "dc_"],
             email_ids_url_sent:        ["sd"],
             url_body_sent:             ["tae", "sm"],
@@ -1982,7 +1982,6 @@ var Gmail = function(localJQuery) {
         }
 
         let parsedResponse = [];
-        let originalResponse = response;
         try {
             // gmail post response structure
             // )}]"\n<datalength><rawData>\n<dataLength><rawData>...
@@ -2008,7 +2007,7 @@ var Gmail = function(localJQuery) {
                 response = response.substring(data.length, response.length);
             }
         } catch (e) {
-            // console.log("GmailJS post response-parsing failed.", e, originalResponse);
+            // console.log("GmailJS post response-parsing failed.", e);
         }
 
         return parsedResponse;
@@ -2161,7 +2160,7 @@ var Gmail = function(localJQuery) {
         const win = api.helper.get_xhr_window();
 
         api.tools.patch(win.XMLHttpRequest.prototype.open, (orig) => {
-            win.XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
+            win.XMLHttpRequest.prototype.open = function (method, url) {
                 var out = orig.apply(this, arguments);
                 this.xhrParams = {
                     method: method.toString(),
@@ -2820,7 +2819,7 @@ var Gmail = function(localJQuery) {
 
     // observes every element inserted into the DOM by Gmail and looks at the classes on those elements,
     // checking for any configured observers related to those classes
-    api.tools.insertion_observer = function(target, dom_observers, dom_observer_map, sub) {
+    api.tools.insertion_observer = function(target, dom_observers, dom_observer_map) {
         //console.log("insertion", target, target.className);
         if(!dom_observer_map) return;
 
